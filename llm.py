@@ -28,67 +28,80 @@ def estimate_model_size(model):
     param_size = sum(p.numel() for p in model.parameters()) * 4
     return param_size / (1024 ** 2)
 
+# Create a dictionary to store models and tokenizers
+models = {}
+
+# Load models only once
+for model_name in model_names:
+    try:
+        print(f"Loading model {model_name}...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+        models[model_name] = (tokenizer, model)
+        
+        # Log the number of parameters
+        num_params = sum(p.numel() for p in model.parameters())
+        print(f"Number of parameters for {model_name}: {num_params}")
+    except Exception as e:
+        print(f"Error loading model {model_name}: {e}")
+
 # Create an empty list to store results
 results = []
 
 # Loop through each model
 for model_name in model_names:
-    print(f"\nLoading and generating with model: {model_name}")
+    if model_name in models:
+        tokenizer, model = models[model_name]  # Retrieve the loaded tokenizer and model
+        print(f"\nGenerating with model: {model_name}")
 
-    # Measure loading time
-    start_time = time.time()
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    load_time = time.time() - start_time
-    print(f"Loading time for model '{model_name}': {load_time:.2f} seconds")
+        for prompt in prompts:
+            try:
+                # Tokenize the input text
+                input_ids = tokenizer.encode(prompt, return_tensors="pt")
 
-    # Estimate memory size
-    memory_usage = estimate_model_size(model)
+                # Measure generation time
+                start_time = time.time()
+                output = model.generate(
+                    input_ids,
+                    max_length=100,  # Maximum number of tokens to generate
+                    num_return_sequences=1,  # Number of sequences to generate
+                    no_repeat_ngram_size=2,  # Prevent repetition of patterns
+                    top_k=50,  # Filter improbable words
+                    top_p=0.95,  # Nucleus sampling
+                    temperature=0.7,  # Control creativity
+                )
+                generation_time = time.time() - start_time
 
-    for prompt in prompts:
-        # Tokenize the input text
-        input_ids = tokenizer.encode(prompt, return_tensors="pt")
+                # Decode the generated text
+                generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+                diversity = diversity_score(generated_text)
 
-        # Measure generation time
-        start_time = time.time()
-        output = model.generate(
-            input_ids,
-            max_length=100,  # Maximum number of tokens to generate
-            num_return_sequences=1,  # Number of sequences to generate
-            no_repeat_ngram_size=2,  # Prevent repetition of patterns
-            top_k=50,  # Filter improbable words
-            top_p=0.95,  # Nucleus sampling
-            temperature=0.7,  # Control creativity
-        )
-        generation_time = time.time() - start_time
+                print(f"Generation time for model '{model_name}' and prompt '{prompt}': {generation_time:.2f} seconds")
+                print("Generated text:")
+                print(generated_text)
 
-        # Decode the result
-        generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
-        diversity = diversity_score(generated_text)
-
-        print(f"Generation time for model '{model_name}' and prompt '{prompt}': {generation_time:.2f} seconds")
-        print("Generated text:")
-        print(generated_text)
-
-        # Append the results to the list
-        results.append({
-            "Model": model_name,
-            "Prompt": prompt,
-            "Generated Text": generated_text,
-            "Diversity Score": diversity,
-            "Loading Time (s)": load_time,
-            "Generation Time (s)": generation_time,
-            "Memory Usage (MB)": memory_usage
-        })
+                # Append the results to the list
+                results.append({
+                    "Model": model_name,
+                    "Prompt": prompt,
+                    "Generated Text": generated_text,
+                    "Diversity Score": diversity,
+                    "Generation Time (s)": generation_time,
+                    "Memory Usage (MB)": estimate_model_size(model),
+                })
+            except Exception as e:
+                print(f"Error generating for model {model_name} and prompt '{prompt}': {e}")
+    else:
+        print(f"Model {model_name} could not be loaded. Its generation is skipped.")
 
 # Create a DataFrame from the results
 df = pd.DataFrame(results)
 
-# Save the DataFrame to a CSV file
+# Save the results to a CSV file
 df.to_csv("results.csv", index=False)
 print("\nResults have been saved to 'results.csv'.")
 
-# Display the DataFrame
+# Display a summary of the results
 print("\nSummary of Results:")
 print(df)
 
@@ -96,12 +109,10 @@ print(df)
 fig1 = px.bar(
     df,
     x='Model',
-    y=['Loading Time (s)', 'Generation Time (s)'],
-    title="Loading and Generation Time for Each Model",
-    labels={'value': 'Time (seconds)', 'variable': 'Type of Time'},
-    barmode='stack', 
-    color='variable',
-    color_discrete_map={'Loading Time (s)': 'skyblue', 'Generation Time (s)': 'orange'}
+    y='Generation Time (s)',
+    title="Generation Time for Each Model",
+    labels={'Generation Time (s)': 'Generation Time (seconds)'},
+    color='Model'
 )
 fig1.show()
 
