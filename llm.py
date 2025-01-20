@@ -5,9 +5,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # List of models to test
 model_names = [
-    "gpt2",  # GPT-2 (small base model)
-    "EleutherAI/gpt-neo-1.3B",  # GPT-Neo (1.3B parameters, larger)
-    "facebook/opt-125m",  # OPT (125M parameters, lightweight model)
+    "gpt2",
+    "EleutherAI/gpt-neo-1.3B",
+    "facebook/opt-125m",
 ]
 
 # List of prompts to test
@@ -39,7 +39,6 @@ for model_name in model_names:
         model = AutoModelForCausalLM.from_pretrained(model_name)
         models[model_name] = (tokenizer, model)
         
-        # Log the number of parameters
         num_params = sum(p.numel() for p in model.parameters())
         print(f"Number of parameters for {model_name}: {num_params}")
     except Exception as e:
@@ -51,28 +50,25 @@ results = []
 # Loop through each model
 for model_name in model_names:
     if model_name in models:
-        tokenizer, model = models[model_name]  # Retrieve the loaded tokenizer and model
+        tokenizer, model = models[model_name] 
         print(f"\nGenerating with model: {model_name}")
 
         for prompt in prompts:
             try:
-                # Tokenize the input text
                 input_ids = tokenizer.encode(prompt, return_tensors="pt")
 
-                # Measure generation time
                 start_time = time.time()
                 output = model.generate(
                     input_ids,
-                    max_length=100,  # Maximum number of tokens to generate
-                    num_return_sequences=1,  # Number of sequences to generate
-                    no_repeat_ngram_size=2,  # Prevent repetition of patterns
-                    top_k=50,  # Filter improbable words
-                    top_p=0.95,  # Nucleus sampling
-                    temperature=0.7,  # Control creativity
+                    max_length=100, 
+                    num_return_sequences=1, 
+                    no_repeat_ngram_size=2,
+                    top_k=50,
+                    top_p=0.95,
+                    temperature=0.7,
                 )
                 generation_time = time.time() - start_time
 
-                # Decode the generated text
                 generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
                 diversity = diversity_score(generated_text)
 
@@ -80,7 +76,6 @@ for model_name in model_names:
                 print("Generated text:")
                 print(generated_text)
 
-                # Append the results to the list
                 results.append({
                     "Model": model_name,
                     "Prompt": prompt,
@@ -105,7 +100,6 @@ print("\nResults have been saved to 'results.csv'.")
 print("\nSummary of Results:")
 print(df)
 
-# Plotting with Plotly
 fig1 = px.bar(
     df,
     x='Model',
