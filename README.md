@@ -6,8 +6,8 @@ This script evaluates and compares the loading and text generation times of seve
 
 ## Features
 
-- **Model Loading Time:** Measures the time it takes to load each model from the Hugging Face model hub.
-- **Text Generation Performance:** Evaluates the time required to generate text for a set of prompts.
+- **Model Loading Time:** Measures the time taken to load each template from the Hugging Face template hub.
+- **Text Generation Performance:** Evaluates the time taken to generate text for a set of prompts.
 - **Diversity Analysis:** Computes a diversity score based on the number of unique words in the generated text.
 - **Memory Estimation:** Estimates the memory usage of each model in megabytes (MB).
 - **Results Export:** Saves all results to a CSV file for further analysis.
